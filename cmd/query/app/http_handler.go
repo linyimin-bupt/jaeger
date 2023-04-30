@@ -20,8 +20,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"os/user"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -132,6 +136,8 @@ func (aH *APIHandler) RegisterRoutes(router *mux.Router) {
 	aH.handleFunc(router, aH.calls, "/metrics/calls").Methods(http.MethodGet)
 	aH.handleFunc(router, aH.errors, "/metrics/errors").Methods(http.MethodGet)
 	aH.handleFunc(router, aH.minStep, "/metrics/minstep").Methods(http.MethodGet)
+	aH.handleFunc(router, aH.flameGraphReceive, "/flamegraph/receive").Methods(http.MethodPost)
+	aH.handleFunc(router, aH.flameGraphView, "/flamegraph/view/{%s}", serviceParam).Methods(http.MethodGet)
 }
 
 func (aH *APIHandler) handleFunc(
@@ -522,4 +528,60 @@ func (aH *APIHandler) writeJSON(w http.ResponseWriter, r *http.Request, response
 	if err := marshal(w, response); err != nil {
 		aH.handleError(w, fmt.Errorf("failed writing HTTP response: %w", err), http.StatusInternalServerError)
 	}
+}
+
+func (aH *APIHandler) flameGraphReceive(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(32 << 20)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	data, err := io.ReadAll(file)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := os.Stat(getPath()); os.IsNotExist(err) {
+		if err := os.MkdirAll(getPath(), 0755); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	err = os.WriteFile(getPath()+handler.Filename, data, 0644)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (aH *APIHandler) flameGraphView(w http.ResponseWriter, r *http.Request) {
+	service := mux.Vars(r)[serviceParam]
+
+	path := getPath() + service + ".html"
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		http.Error(w, path+" not found", http.StatusNotFound)
+		return
+	}
+
+	http.ServeFile(w, r, path)
+
+}
+
+func getPath() string {
+	separator := string(filepath.Separator)
+	u, _ := user.Current()
+	path := u.HomeDir + separator + "java-profiler-boost" + separator + "static" + separator
+	return path
 }
