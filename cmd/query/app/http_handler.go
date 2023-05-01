@@ -136,8 +136,9 @@ func (aH *APIHandler) RegisterRoutes(router *mux.Router) {
 	aH.handleFunc(router, aH.calls, "/metrics/calls").Methods(http.MethodGet)
 	aH.handleFunc(router, aH.errors, "/metrics/errors").Methods(http.MethodGet)
 	aH.handleFunc(router, aH.minStep, "/metrics/minstep").Methods(http.MethodGet)
-	aH.handleFunc(router, aH.flameGraphReceive, "/flamegraph/receive").Methods(http.MethodPost)
+	aH.handleFunc(router, aH.fileReceive, "/file/receive").Methods(http.MethodPost)
 	aH.handleFunc(router, aH.flameGraphView, "/flamegraph/view/{%s}", serviceParam).Methods(http.MethodGet)
+	aH.handleFunc(router, aH.markdownView, "/markdown/view/{%s}", serviceParam).Methods(http.MethodGet)
 }
 
 func (aH *APIHandler) handleFunc(
@@ -530,7 +531,7 @@ func (aH *APIHandler) writeJSON(w http.ResponseWriter, r *http.Request, response
 	}
 }
 
-func (aH *APIHandler) flameGraphReceive(w http.ResponseWriter, r *http.Request) {
+func (aH *APIHandler) fileReceive(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(32 << 20)
 
 	if err != nil {
@@ -570,6 +571,19 @@ func (aH *APIHandler) flameGraphView(w http.ResponseWriter, r *http.Request) {
 	service := mux.Vars(r)[serviceParam]
 
 	path := getPath() + service + ".html"
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		http.Error(w, path+" not found", http.StatusNotFound)
+		return
+	}
+
+	http.ServeFile(w, r, path)
+
+}
+
+func (aH *APIHandler) markdownView(w http.ResponseWriter, r *http.Request) {
+	service := mux.Vars(r)[serviceParam]
+
+	path := getPath() + service + ".md"
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		http.Error(w, path+" not found", http.StatusNotFound)
 		return
