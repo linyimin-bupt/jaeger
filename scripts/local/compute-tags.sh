@@ -5,8 +5,8 @@
 set -exu
 
 BASE_BUILD_IMAGE=$1
-BRANCH=main
-GITHUB_SHA=$(git rev-parse HEAD | cut -c1-5)
+BRANCH=${BRANCH:?'expecting BRANCH env var'}
+GITHUB_SHA=${git rev-parse HEAD | cut -c1-5}
 
 ## if we are on a release tag, let's extract the version number
 ## the other possible value, currently, is 'main' (or another branch name)
