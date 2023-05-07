@@ -37,7 +37,7 @@ fi
 
 docker_file_arg="${dir_arg}/${docker_file_arg}"
 
-IMAGE_TAGS="--tag docker.io/${DOCKERHUB_NAME_SPACE}/${component_name}:${TAG}"
+IMAGE_TAGS="--tag docker.io/${DOCKERHUB_NAME_SPACE}/${component_name}:${TAG} --tag docker.io/${DOCKERHUB_NAME_SPACE}/${component_name}:latest"
 upload_flag=""
 
 # Only push multi-arch images to dockerhub for main branch or for release tags vM.N.P
